@@ -1,11 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kazane Crypto - 专业文件加密终端</title>
+        <link rel="stylesheet" href="style.css">
+       <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Kazane Crypto</h1>
+        <p>原生 AES-256 加密，文件全程本地处理，零数据外流风险。</p>
+    </div>
+
+    <div class="main-layout">
+        <div class="panel">
+            <div class="panel-title">文件</div>
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <p>拖放文件到此处或点击选择</p>
+                <span>支持大文件处理 (最大 10GB)</span>
+                <button class="btn-select">选择文件</button>
+            </div>
+            <div class="file-display" id="fileNameDisp">未选择文件</div>
+            
+            <input type="file" id="fileInput">
+
+            <div class="action-bar">
+                <button class="btn-action btn-execute" id="mainBtn" onclick="handleAction()" disabled>等待选择文件</button>
+                <button class="btn-action btn-reset" onclick="location.reload()">重置</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title" style="color: #22c55e;">设置</div>
+            
+            <div class="setting-group">
+                <label>算法模式:</label>
+                <select id="algoSelect">
+                    <option value="0">AES</option>
+                    <option value="1">3DES</option>
+                    <option value="2">RC4</option>
+                    <option value="3">XOR</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <label>密码:</label>
+                <input type="password" id="password" class="input-box" placeholder="输入用于加解密的密码">
+                <label class="checkbox-container">
+                    <input type="checkbox" id="showPwd" onclick="togglePassword()"> 显示密码
+                </label>
+            </div>
+
+            <div class="setting-group">
+                <label>输出文件名:</label>
+                <input type="text" id="customName" class="input-box" placeholder="自定输出文件名(不含扩展名)">
+            </div>
+
+            <div class="save-bar">
+                <button class="btn-blue">保存设置</button>
+                <button class="btn-gray">重置设置</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="progress-container"><div class="progress-bar" id="progress"></div></div>
+    <div id="log">等待操作...</div>
+    
+    <footer>
+        <p>KazaneCrypto &copy; 2025 | 使用现代Web加密API，所有处理均在浏览器本地完成，文件不会上传到服务器 | By:美夜赤月</p>
+    </footer>
+<script src="Crypto.js"></script>
+</body>
 </html>
