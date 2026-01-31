@@ -51,13 +51,10 @@ function wordToUint8(wordArray) {
 }
 
 function dataXor(data, key) {
-    // 确保 key 是 Uint8Array 类型的字节集
     const keyBytes = (key instanceof Uint8Array) ? key : new TextEncoder().encode(key);
     if (keyBytes.length === 0) return data;
-
     const res = new Uint8Array(data.length);
     for (let i = 0; i < data.length; i++) {
-        // 核心逻辑：逐字节异或，对应易语言的位异或逻辑
         res[i] = data[i] ^ keyBytes[i % keyBytes.length];
     }
     return res;
@@ -79,7 +76,10 @@ const logBox = document.getElementById('log');
 
 const logger = (msg) => { 
     logBox.innerText += `\n> ${msg}`; 
-    logBox.scrollTop = logBox.scrollHeight; 
+    // 移动端滚动条平滑处理
+    requestAnimationFrame(() => {
+        logBox.scrollTop = logBox.scrollHeight; 
+    });
 };
 
 document.getElementById('fileInput').onchange = (e) => {
@@ -93,7 +93,6 @@ async function handleFileSelect(file) {
     const customNameInput = document.getElementById('customName');
     const originalName = file.name;
     const lastDotIndex = originalName.lastIndexOf('.');
-    
     let baseName = (lastDotIndex !== -1) ? originalName.substring(0, lastDotIndex) : originalName;
 
     const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
@@ -170,18 +169,15 @@ async function runEncrypt(file, pwdInput) {
             let encrypted;
             if (algo === 0) encrypted = wordToUint8(CryptoJS.AES.encrypt(chunkWA, dataKeyWA, { iv: initialIvWA, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.NoPadding }).ciphertext);
             else if (algo === 1) encrypted = wordToUint8(CryptoJS.TripleDES.encrypt(chunkWA, u8ToWA(dataKeyRaw.slice(0, 24)), { iv: initialIvWA, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.NoPadding }).ciphertext);
-            //else if (algo === 2) encrypted = wordToUint8(CryptoJS.RC4.encrypt(chunkWA, u8ToWA(wordToUint8(CryptoJS.MD5(u8ToWA(new TextEncoder().encode(pwdInput)))))).ciphertext);
             else if (algo === 2) {
                 const md5Full = CryptoJS.MD5(pwdInput).toString(CryptoJS.enc.Hex).toUpperCase();
                 const finalKey = md5Full.substr(8, 16); 
                 const finalKeyWA = CryptoJS.enc.Utf8.parse(finalKey);
                 encrypted = wordToUint8(CryptoJS.RC4.encrypt(chunkWA, finalKeyWA).ciphertext);
             }
-            
             else if (algo === 3) {
-            
-            const originalPwdBytes = new TextEncoder().encode(pwdInput);
-            encrypted = dataXor(chunk, originalPwdBytes);
+                const originalPwdBytes = new TextEncoder().encode(pwdInput);
+                encrypted = dataXor(chunk, originalPwdBytes);
             }
             
             encryptedChunks.push(encrypted);
@@ -213,8 +209,7 @@ async function runDecrypt(file, pwdInput) {
         const algo = dHead[48] | (dHead[49] << 8) | (dHead[50] << 16) | (dHead[51] << 24);
         
         if (algo === 4) {
-            //alert("该文件使用了 ChaCha20 算法加密，网页端目前不支持该算法，请使用 PC 端进行解密。");
-            return logger("该文件使用了 ChaCha20 算法加密，网页端目前不支持该算法，请使用 PC 端进行解密。");
+            return logger("ChaCha20 暂不支持网页解密。");
         }
 
         const fmtLen = dHead[52] | (dHead[53] << 8) | (dHead[54] << 16) | (dHead[55] << 24);
@@ -237,12 +232,10 @@ async function runDecrypt(file, pwdInput) {
             else if (algo === 2) {
                 const md5Full = CryptoJS.MD5(pwdInput).toString(CryptoJS.enc.Hex).toUpperCase();
                 const finalKeyText = md5Full.substr(8, 16); 
-                const finalKeyWA = CryptoJS.enc.Utf8.parse(finalKeyText); // 关键：转回字节集 (WordArray)
+                const finalKeyWA = CryptoJS.enc.Utf8.parse(finalKeyText);
                 decrypted = wordToUint8(CryptoJS.RC4.decrypt({ ciphertext: chunkWA }, finalKeyWA));
             }
-            //decrypted = wordToUint8(CryptoJS.RC4.decrypt({ ciphertext: chunkWA }, u8ToWA(wordToUint8(CryptoJS.MD5(u8ToWA(new TextEncoder().encode(pwdInput)))))));
             else if (algo === 3) {
-                // 关键修改：直接使用原始输入的 pwdInput 转为字节集进行异或
                 const originalPwdBytes = new TextEncoder().encode(pwdInput);
                 decrypted = dataXor(chunk, originalPwdBytes);
             }
@@ -262,48 +255,51 @@ async function runDecrypt(file, pwdInput) {
             progress.style.width = Math.round((processed / totalSize) * 100) + "%";
         }
 
-const customName = document.getElementById('customName').value;
-let finalName;
-
-if (customName) {
-    // 检查自定义名称是否已经包含要添加的扩展名
-    const customNameLower = customName.toLowerCase();
-    const formatLower = format.toLowerCase();
-    
-    if (customNameLower.endsWith(`.${formatLower}`)) {
-        finalName = customName;
-    } else {
-        finalName = `${customName}.${format}`;
-    }
-} else {
-    const originalName = file.name;
-    const originalNameLower = originalName.toLowerCase();
-    const formatLower = format.toLowerCase();
-    const targetExtension = `.${formatLower}`;
-    
-    // 检查原始文件名是否已经包含目标扩展名（不区分大小写）
-    if (originalNameLower.endsWith(targetExtension)) {
-        // 如果已经有目标扩展名，则直接使用原始文件名
-        finalName = originalName;
-    } else {
-        const lastDotIndex = originalName.lastIndexOf('.');
-        // 对于.kazanecrypto的特殊处理
-        if (lastDotIndex !== -1 && originalName.substring(lastDotIndex).toLowerCase() === '.kazanecrypto') {
-            finalName = originalName.substring(0, lastDotIndex) + '.' + format;
+        const customName = document.getElementById('customName').value;
+        let finalName;
+        if (customName) {
+            finalName = customName.toLowerCase().endsWith(`.${format.toLowerCase()}`) ? customName : `${customName}.${format}`;
         } else {
-            finalName = originalName + '.' + format;
+            finalName = file.name.replace(/\.kazanecrypto$/i, '') + '.' + format;
         }
-    }
-}
 
         saveFile(new Blob(decryptedChunks), finalName);
         logger("解密任务成功完成");
     } catch (e) { logger("错误: " + e.message); }
 }
 
+// 移动端专用下载触发逻辑
 function saveFile(blob, name) {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    a.click();
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        
+        // 检查浏览器是否支持 Web Share API (部分现代安卓系统 WebView 支持)
+        if (navigator.share) {
+            const file = new File([blob], name, { type: blob.type });
+            navigator.share({
+                files: [file],
+                title: '保存加密文件',
+                text: '这是您生成的加密文件',
+            }).then(() => {
+                logger("分享成功，文件已保存。");
+            }).catch((err) => {
+                // 如果分享失败，降级到显示手动保存区域
+                showManualArea(dataUrl, name);
+            });
+        } else {
+            showManualArea(dataUrl, name);
+        }
+    };
+    reader.readAsDataURL(blob);
+}
+
+function showManualArea(dataUrl, name) {
+    const logBox = document.getElementById('log');
+    const div = document.createElement('div');
+    div.style.cssText = "padding:15px; background:#22c55e; color:white; border-radius:8px; margin:10px 0; text-align:center;";
+    div.innerHTML = `<p style="margin:0 0 10px 0">点击或长按下方按钮保存</p>
+                     <a href="${dataUrl}" download="${name}" style="color:white; font-weight:bold; word-break:break-all;">【保存: ${name}】</a>`;
+    logBox.parentNode.insertBefore(div, logBox);
+    logger("由于权限限制，请使用上方的绿色区域进行保存。");
 }
